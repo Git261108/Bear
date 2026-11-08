@@ -25,6 +25,9 @@ android.archs = arm64-v8a, armeabi-v7a
 android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 android.allow_backup = True
 
+# CI 环境自动接受 Android SDK 许可协议（否则无交互输入会跳过 build-tools 安装）
+android.accept_license = 1
+
 # 首页方向锁定竖屏、保留状态栏
 android.wakelock = 1
 
