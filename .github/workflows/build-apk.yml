@@ -12,12 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # libltdl-dev 提供 libtool 的 m4 宏，修复 p4a 编译 libffi 时
+      # autoreconf 报 LT_SYS_SYMBOL_USCORE possibly undefined 的问题
       - name: 安装系统依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk \
-            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
-            cmake libffi-dev libssl-dev
+            build-essential autoconf automake libtool libltdl-dev m4 \
+            pkg-config zlib1g-dev libncurses-dev cmake \
+            libffi-dev libssl-dev ccache
 
       - name: 安装 Buildozer
         run: |
@@ -25,8 +28,17 @@ jobs:
           pip install buildozer cython==0.29.33
           buildozer --version
 
+      # 缓存 SDK/NDK 与 p4a 构建目录，spec 变更时自动失效重下
+      - name: 缓存构建环境
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.gradle
+          key: bz-v4-${{ hashFiles('buildozer.spec') }}
+
       # 预装 Buildozer 期望布局的 SDK（tools/bin/sdkmanager）+ 许可指纹 + 基础组件，
-      # 使 buildozer 识别为"SDK 已存在"后能直接用，且不会再触发交互式许可确认
+      # 与 buildozer.spec 中 android.api=34 / build_tools_version=34.0.0 对应
       - name: 预装 Android SDK 并接受许可
         run: |
           SDK=$HOME/.buildozer/android/platform/android-sdk
@@ -37,7 +49,7 @@ jobs:
           printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > $SDK/licenses/android-sdk-license
           printf "84831b9409646a918e30573bab4c9c9136d617a0\n" > $SDK/licenses/android-sdk-preview-license
           export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
-          yes | $SDK/tools/bin/sdkmanager --sdk_root=$SDK "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+          yes | $SDK/tools/bin/sdkmanager --sdk_root=$SDK "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: 打包 APK（首次约 20~40 分钟）
         run: buildozer -v android debug

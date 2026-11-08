@@ -13,12 +13,15 @@ source.exclude_patterns = selftest.py,upload.xlsx,*.spec,*.md
 version = 0.9.0
 
 # ==== 依赖（APK 内置 Python 运行时与第三方库）====
-requirements = python3,kivy==2.3.0,flask,openpyxl,jnius,plyer,xlrd
+# pyjnius：安卓 WebView/文件选择（import 名仍是 jnius）
+# plyer：安卓系统文件选择器（导入新科目用，不能删）
+# xlrd：.xls 格式题库支持（不能删）
+requirements = python3,kivy==2.3.0,flask,jinja2,werkzeug,openpyxl,pyjnius,plyer,xlrd
 
 # ==== 安卓配置 ====
 orientation = portrait
 fullscreen = 0
-android.api = 33
+android.api = 34
 android.minapi = 24
 # 固定 build-tools 为稳定版，避免 sdkmanager 自动追最新版（37）导致的许可/兼容问题
 android.build_tools_version = 34.0.0
