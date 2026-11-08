@@ -8,18 +8,29 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK (Buildozer)
-        id: buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        with:
-          buildozer_version: stable
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            cmake libffi-dev libssl-dev
+
+      - name: 安装 Buildozer
+        run: |
+          pip install --upgrade pip wheel
+          pip install buildozer cython==0.29.33
+          buildozer --version
+
+      - name: 打包 APK（首次约 20~40 分钟）
+        run: buildozer -v android debug
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: jiakao-apk
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
+          if-no-files-found: error

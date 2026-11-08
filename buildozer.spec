@@ -1,8 +1,8 @@
 [app]
 # ==== 应用基本信息 ====
-title = 驾考背题宝典
-package.name = jiakaobaodian
-package.domain = org.jiakao
+title = Bear·熊笔记
+package.name = bearnotes
+package.domain = org.bearbiji
 source.dir = .
 source.include_exts = py,html,css,xlsx,db
 # 打包时排除不需要的文件
@@ -10,7 +10,7 @@ source.exclude_dirs = .git,__pycache__,data/backup
 source.exclude_patterns = selftest.py,upload.xlsx,*.spec,*.md
 
 # 版本号
-version = 1.0.0
+version = 0.9.0
 
 # ==== 依赖（APK 内置 Python 运行时与第三方库）====
 requirements = python3,kivy==2.3.0,flask,openpyxl,jnius,plyer,xlrd
