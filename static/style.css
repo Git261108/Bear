@@ -1,0 +1,229 @@
+/* 驾考背题应用 全局样式（移动端优先，PC 自适应） */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --primary: #2b7de9;
+  --primary-dark: #1f66c4;
+  --green: #2eb872;
+  --red: #ef4d4d;
+  --orange: #ff9f2e;
+  --bg: #f2f4f8;
+  --card: #ffffff;
+  --text: #2c3e50;
+  --text-2: #8a94a6;
+  --radius: 14px;
+  --shadow: 0 2px 10px rgba(30, 60, 120, .08);
+}
+
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text);
+  max-width: 720px; margin: 0 auto; min-height: 100vh;
+  padding-bottom: 70px;
+}
+
+/* 顶部 */
+.header {
+  background: linear-gradient(135deg, #3a8df0, #2b6fd8);
+  color: #fff; padding: 22px 18px 26px;
+  border-radius: 0 0 24px 24px;
+}
+.header h1 { font-size: 22px; }
+.header .sub { font-size: 13px; opacity: .85; margin-top: 6px; }
+
+/* 卡片 */
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px; margin: 14px;
+}
+.card h2 { font-size: 16px; margin-bottom: 12px; }
+
+/* 首页科目入口网格 */
+.subject-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.subject-item {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px 14px; cursor: pointer;
+  transition: transform .15s;
+  display: block; color: var(--text); text-decoration: none;
+}
+.subject-item:active { transform: scale(.97); }
+.subject-item .name { font-size: 17px; font-weight: 600; }
+.subject-item .ops { white-space: nowrap; }
+.subject-item .ops span { font-size: 15px; cursor: pointer; margin-left: 4px; opacity: .75; }
+.subject-item .ops span:active { opacity: 1; transform: scale(.9); }
+.subject-item .count { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+.subject-item .bar { height: 5px; background: #e8edf5; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.subject-item .bar i { display: block; height: 100%; background: linear-gradient(90deg, #4aa1ff, #2b7de9); border-radius: 3px; }
+
+/* 功能九宫格 */
+.func-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.func-item { text-align: center; padding: 10px 4px; border-radius: 10px; cursor: pointer; text-decoration: none; color: var(--text); display: block; }
+.func-item:active { background: #eef3fa; }
+.func-item .icon { font-size: 26px; }
+.func-item .label { font-size: 12px; margin-top: 6px; color: #556; }
+
+/* 按钮 */
+.btn {
+  display: inline-block; border: none; cursor: pointer;
+  background: var(--primary); color: #fff; font-size: 15px;
+  padding: 10px 22px; border-radius: 22px; text-decoration: none;
+}
+.btn:active { background: var(--primary-dark); }
+.btn.gray { background: #e5e9f0; color: #556; }
+.btn.danger { background: var(--red); }
+.btn.full { display: block; width: 100%; text-align: center; }
+.btn.small { font-size: 13px; padding: 6px 14px; }
+
+/* 底部导航 */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 720px; background: #fff;
+  border-top: 1px solid #e7ebf2; display: flex; z-index: 50;
+}
+.bottom-nav a {
+  flex: 1; text-align: center; padding: 8px 0 10px;
+  text-decoration: none; color: #9aa3b5; font-size: 11px;
+}
+.bottom-nav a .icon { font-size: 20px; display: block; }
+.bottom-nav a.active { color: var(--primary); }
+
+/* 练习页 */
+.quiz-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: #fff; position: sticky; top: 0; z-index: 40;
+  border-bottom: 1px solid #eef1f6;
+}
+.quiz-top .type-tag { background: #eaf2ff; color: var(--primary); font-size: 12px; padding: 3px 10px; border-radius: 10px; }
+.quiz-top .fav-btn { font-size: 20px; cursor: pointer; background: none; border: none; }
+.progress-wrap { background: #fff; padding: 0 16px 10px; }
+.progress-bar { height: 6px; background: #e8edf5; border-radius: 3px; overflow: hidden; }
+.progress-bar i { display: block; height: 100%; background: var(--green); transition: width .2s; }
+
+.quiz-body { padding: 16px; }
+.quiz-no { color: var(--text-2); font-size: 13px; margin-bottom: 8px; }
+.quiz-title { font-size: 17px; line-height: 1.55; font-weight: 600; }
+
+.option {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fff; border: 1.5px solid #e7ebf2;
+  border-radius: 12px; padding: 13px 14px; margin-top: 12px;
+  cursor: pointer; font-size: 15px; line-height: 1.5; transition: .15s;
+}
+.option .letter {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+  background: #eef3fa; color: #567; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.option.selected { border-color: var(--primary); background: #f0f6ff; }
+.option.selected .letter { background: var(--primary); color: #fff; }
+.option.right { border-color: var(--green); background: #effaf3; }
+.option.right .letter { background: var(--green); color: #fff; }
+.option.wrong { border-color: var(--red); background: #fdf0f0; }
+.option.wrong .letter { background: var(--red); color: #fff; }
+
+.answer-panel { margin-top: 14px; border-radius: 12px; padding: 14px; font-size: 14px; line-height: 1.6; display: none; }
+.answer-panel.show { display: block; }
+.answer-panel.ok { background: #effaf3; color: #1d7a4c; }
+.answer-panel.no { background: #fdf0f0; color: #b83434; }
+.answer-panel .exp { color: #667; margin-top: 6px; }
+
+.quiz-footer { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 720px; background: #fff; border-top: 1px solid #e7ebf2; display: flex; z-index: 45; }
+.quiz-footer button { flex: 1; padding: 14px 0; font-size: 15px; background: none; border: none; cursor: pointer; color: #567; }
+.quiz-footer button:active { background: #f2f5fa; }
+.quiz-footer button.confirm { color: var(--primary); font-weight: 600; }
+
+/* 成绩弹层 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
+.modal-mask.show { display: flex; }
+.modal { background: #fff; border-radius: 16px; padding: 26px 30px; width: 82%; max-width: 340px; text-align: center; }
+.modal .score { font-size: 46px; font-weight: 700; margin: 10px 0; }
+.modal .score.pass { color: var(--green); }
+.modal .score.fail { color: var(--red); }
+
+/* 科目二级页：模式列表 */
+.mode-list { display: flex; flex-direction: column; gap: 8px; }
+.mode-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #f6f8fc; border-radius: 12px; padding: 14px;
+  cursor: pointer; text-decoration: none; color: var(--text);
+}
+.mode-item:active { background: #eef3fa; }
+.mode-item .icon { font-size: 24px; }
+.mode-item .info { flex: 1; display: flex; flex-direction: column; }
+.mode-item .info i { font-style: normal; font-size: 12px; color: var(--text-2); margin-top: 3px; }
+.mode-item .arrow { color: #c2c9d6; font-size: 20px; }
+
+/* 模式行展开的题数输入 */
+.count-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #eef3fa; border-radius: 12px; padding: 10px 12px;
+}
+.count-row input {
+  flex: 1; min-width: 0; padding: 9px 12px; font-size: 14px;
+  border: 1.5px solid #d8e1ee; border-radius: 10px; outline: none;
+}
+.count-row .hint { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+
+/* 题型/题数档位选择面板 */
+.pick-panel {
+  background: #eef3fa; border-radius: 12px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pick-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pick-label { font-size: 13px; color: var(--text-2); width: 34px; }
+.chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 7px 14px; font-size: 13px; border: 1.5px solid #d8e1ee;
+  border-radius: 999px; background: #fff; color: var(--text); cursor: pointer;
+}
+.chip:active { background: #e3edfa; }
+.chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* 答题情况概览 */
+#statusOverlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, .45);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+  padding: 20px;
+}
+.status-card {
+  background: #fff; border-radius: 16px; padding: 16px;
+  width: 100%; max-width: 420px; max-height: 70vh; overflow: auto;
+}
+.status-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.status-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); margin: 10px 0; }
+.status-legend .dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  background: #d5dbe6; margin-right: 4px; vertical-align: middle;
+}
+.status-legend .dot.ok { background: var(--green); }
+.status-legend .dot.no { background: var(--red); }
+.status-legend .dot.picked { background: #f0b429; }
+.num-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+.num-chip {
+  display: flex; align-items: center; justify-content: center;
+  height: 38px; border-radius: 10px; background: #eef1f6;
+  font-size: 14px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.num-chip:active { opacity: .75; }
+.num-chip.ok { background: var(--green); color: #fff; }
+.num-chip.no { background: var(--red); color: #fff; }
+.num-chip.picked { background: #f0b429; color: #fff; }
+
+/* 统计页 */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat-cell { background: #f6f8fc; border-radius: 12px; padding: 14px 8px; text-align: center; }
+.stat-cell .num { font-size: 20px; font-weight: 700; color: var(--primary); }
+.stat-cell .lbl { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+.exam-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f2f7; font-size: 14px; }
+.exam-row:last-child { border-bottom: none; }
+.exam-row .pass { color: var(--green); font-weight: 600; }
+.exam-row .fail { color: var(--red); font-weight: 600; }
+
+.empty { text-align: center; color: var(--text-2); padding: 60px 20px; font-size: 14px; }
+.empty .icon { font-size: 44px; margin-bottom: 12px; }
+
+@media (min-width: 600px) {
+  .subject-grid { grid-template-columns: repeat(3, 1fr); }
+  .func-grid { grid-template-columns: repeat(8, 1fr); }
+}

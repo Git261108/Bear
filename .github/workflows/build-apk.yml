@@ -1,0 +1,25 @@
+name: 打包安卓 APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build APK (Buildozer)
+        id: buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        with:
+          buildozer_version: stable
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jiakao-apk
+          path: ${{ steps.buildozer.outputs.filename }}

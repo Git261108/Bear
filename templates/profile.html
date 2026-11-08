@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>我的熊笔记🌠</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>我的熊笔记🌠</h1>
+  <div class="sub" id="subLine">学习数据统计</div>
+</div>
+
+<div class="card">
+  <div class="stat-grid" id="statGrid"></div>
+</div>
+
+<div class="card">
+  <h2>管理</h2>
+  <div class="mode-list">
+    <a class="mode-item" href="/manage">
+      <span class="icon">📑</span>
+      <span class="info"><b>题库管理</b><i>重命名 / 删除</i></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mode-item" href="/import">
+      <span class="icon">📥</span>
+      <span class="info"><b>导入新题库</b><i>上传 Excel 创建新题库</i></span>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>题库练习进度</h2>
+  <div id="subjectStats"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="/"><span class="icon">🏠</span>首页</a>
+  <a href="/profile" class="active"><span class="icon">🧸</span>我的</a>
+</nav>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadStats() {
+  const s = await (await fetch('/api/stats')).json();
+  document.getElementById('subLine').textContent =
+    `今日已答 ${s.today_answered} 题 · 累计正确率 ${s.accuracy}%`;
+
+  document.getElementById('statGrid').innerHTML = [
+    [s.total_questions, '题库总题数'],
+    [s.total_answered, '累计答题'],
+    [s.accuracy + '%', '正确率'],
+    [s.today_answered, '今日答题'],
+    [s.today_wrong, '今日答错'],
+    [s.total_wrong, '错题本'],
+  ].map(([n, l]) => `<div class="stat-cell"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join('');
+
+  document.getElementById('subjectStats').innerHTML = s.subjects.length ? s.subjects.map(sub => {
+    const pct = sub.question_count ? Math.round(sub.done / sub.question_count * 100) : 0;
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:14px">
+        <b>${escapeHtml(sub.name)}</b>
+        <span style="color:var(--text-2);font-size:12px">
+          进度 ${sub.done}/${sub.question_count} · 对 ${sub.right_cnt} 错 ${sub.wrong_cnt}</span>
+      </div>
+      <div class="progress-bar" style="margin-top:8px"><i style="width:${pct}%;background:linear-gradient(90deg,#4aa1ff,#2b7de9)"></i></div>
+    </div>`;
+  }).join('') : '<div class="empty">暂无数据，先去「导入新题库」吧</div>';
+}
+
+loadStats();
+</script>
+</body>
+</html>

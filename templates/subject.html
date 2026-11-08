@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>{{ subject.name }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>{{ subject.name }}</h1>
+  <div class="sub">共 {{ subject.question_count }} 题 · 选择练习模式</div>
+</div>
+
+<div class="card">
+  <h2>🦉模式</h2>
+  <div class="mode-list">
+    <a class="mode-item" href="/practice/{{ subject.id }}?mode=order">
+      <span class="icon">📚</span>
+      <span class="info"><b>顺序练习</b><i id="orderTip">从第一题开始</i></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mode-item" href="javascript:void(0)" onclick="openPick('random')">
+      <span class="icon">🎲</span>
+      <span class="info"><b>随机练习</b><i>选择题型和题数档位</i></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mode-item" href="/wrongbook/{{ subject.id }}">
+      <span class="icon">📕</span>
+      <span class="info"><b>错题本学习</b><i id="wrongTip">显示答案对照学习</i></span>
+      <span class="arrow">›</span>
+    </a>
+    <a class="mode-item" href="javascript:void(0)" onclick="openPick('wrong')">
+      <span class="icon">📝</span>
+      <span class="info"><b>错题本考试</b><i id="wrongExamTip">随机答错题，做对即移出</i></span>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>⏳顺序练习进度</h2>
+  <div class="progress-bar"><i id="orderBar" style="width:0%"></i></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+    <span style="font-size:13px;color:var(--text-2)" id="orderText">—</span>
+    <button class="btn gray small" onclick="resetProgress()">重置进度</button>
+  </div>
+</div>
+
+<!-- 题型 + 题数 选择对话框 -->
+<div class="modal-mask" id="pickMask">
+  <div class="modal" style="text-align:left">
+    <h3 id="pickTitle" style="text-align:center;margin-bottom:14px">随机练习</h3>
+    <div class="pick-line" style="margin-bottom:10px">
+      <span class="pick-label">题型</span>
+      <span class="chip-group" id="pickTypes">
+        <button class="chip active" data-t="">综合</button>
+        <button class="chip" data-t="单选">单选</button>
+        <button class="chip" data-t="多选">多选</button>
+        <button class="chip" data-t="判断">判断</button>
+      </span>
+    </div>
+    <div class="pick-line" style="margin-bottom:16px">
+      <span class="pick-label">题数</span>
+      <span class="chip-group" id="pickCounts">
+        <button class="chip count-chip active" data-c="10">10题</button>
+        <button class="chip count-chip" data-c="20">20题</button>
+        <button class="chip count-chip" data-c="50">50题</button>
+        <button class="chip count-chip" data-c="100">100题</button>
+      </span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn gray" style="min-width:100px" onclick="closePick()">返回</button>
+      <button class="btn" style="min-width:100px" onclick="startPick()">开始</button>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="/"><span class="icon">🏠</span>首页</a>
+  <a href="/profile"><span class="icon">🧸</span>我的</a>
+</nav>
+
+<script>
+const subjectId = {{ subject.id }};
+const total = {{ subject.question_count }};
+let wrongTotal = 0;
+let pickMode = 'random';   // 当前对话框对应的模式
+
+async function loadSettings() {
+  const s = await (await fetch(`/api/settings/${subjectId}`)).json();
+  // 顺序练习进度（点击确认后立即持久化）
+  const done = Math.min(s.progress, total);
+  document.getElementById('orderBar').style.width = (total ? done / total * 100 : 0) + '%';
+  document.getElementById('orderText').textContent = `已完成 ${done} / ${total} 题`;
+  document.getElementById('orderTip').textContent =
+    done >= total ? '已全部完成，点击重置进度可重新开始'
+                  : done > 0 ? `从第 ${done + 1} 题继续` : '从第一题开始';
+  // 错题数量
+  const w = await (await fetch(`/api/wrong/list/${subjectId}`)).json();
+  wrongTotal = w.questions.length;
+  document.getElementById('wrongTip').textContent = `错题 ${wrongTotal} 题 · 显示答案对照学习`;
+  document.getElementById('wrongExamTip').textContent =
+    wrongTotal > 0 ? `错题 ${wrongTotal} 题 · 随机抽答，做对即移出` : '错题本是空的';
+}
+
+/* ---- 选择对话框 ---- */
+function openPick(mode) {
+  if (mode === 'wrong') {
+    if (wrongTotal === 0) return alert('错题本是空的，先去刷题吧！');
+    document.getElementById('pickTitle').textContent = '错题本考试';
+  } else {
+    document.getElementById('pickTitle').textContent = '随机练习';
+  }
+  pickMode = mode;
+  // 每次打开恢复默认选择：综合 + 10题（不记忆上次选择）
+  resetPickChips();
+  document.getElementById('pickMask').classList.add('show');
+}
+function closePick() {
+  document.getElementById('pickMask').classList.remove('show');
+}
+function resetPickChips() {
+  document.querySelectorAll('#pickTypes .chip, #pickCounts .chip').forEach(b => b.classList.remove('active'));
+  document.querySelector('#pickTypes .chip').classList.add('active');
+  document.querySelector('#pickCounts .chip').classList.add('active');
+}
+document.querySelectorAll('#pickTypes .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pickTypes .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('#pickCounts .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pickCounts .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+/* 点档位开始：档位大于题库/错题数时服务端自动取全部，无需提示 */
+function startPick() {
+  const qtype = document.querySelector('#pickTypes .chip.active').dataset.t;
+  const count = document.querySelector('#pickCounts .chip.active').dataset.c;
+  location.href = `/practice/${subjectId}?mode=${pickMode}&count=${count}` +
+    (qtype ? `&qtype=${encodeURIComponent(qtype)}` : '');
+}
+/* 点遮罩关闭 */
+document.getElementById('pickMask').addEventListener('click', e => {
+  if (e.target.id === 'pickMask') closePick();
+});
+
+async function resetProgress() {
+  if (!confirm('确定重置顺序练习进度吗？下次将从第一题开始。')) return;
+  await fetch(`/api/progress/${subjectId}/reset`, {method: 'POST'});
+  loadSettings();
+}
+
+loadSettings();
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>错题本学习</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="quiz-top">
+  <button class="btn gray small" onclick="location.href='/subject/{{ subject_id }}'">← 返回</button>
+  <span class="type-tag" id="typeTag">错题本学习</span>
+  <span style="font-size:12px;color:var(--text-2)" id="countTag"></span>
+</div>
+<div class="progress-wrap">
+  <div class="progress-bar"><i id="progressBar" style="width:0%;background:var(--red)"></i></div>
+  <div style="font-size:12px;color:var(--text-2);margin-top:6px" id="progressText"></div>
+</div>
+
+<div class="quiz-body">
+  <!-- 移除按钮位于题目内容上方 -->
+  <div id="removeBar" style="margin-bottom:8px">
+    <button class="btn danger small" onclick="removeCurrent()">❌ 移出错题本</button>
+  </div>
+  <div class="quiz-no" id="quizNo"></div>
+  <div class="quiz-title" id="quizTitle"></div>
+  <div id="optionBox"></div>
+  <div class="answer-panel show ok" id="answerPanel" style="display:block"></div>
+  <div class="empty" id="emptyBox" style="display:none">
+    <div class="icon">🎉</div>
+    错题本已清空，太棒了，继续保持！
+  </div>
+</div>
+
+<div class="quiz-footer">
+  <button id="prevBtn" onclick="prevQuestion()">上一题</button>
+  <button id="nextBtn" onclick="nextQuestion()">下一题</button>
+</div>
+
+<script>
+const subjectId = {{ subject_id }};
+const LETTERS = 'ABCDEF';
+let questions = [], cur = 0;
+
+async function load() {
+  const data = await (await fetch(`/api/wrong/list/${subjectId}`)).json();
+  questions = data.questions;
+  if (!questions.length) {
+    document.getElementById('emptyBox').style.display = 'block';
+    document.querySelector('.quiz-footer').style.display = 'none';
+    document.getElementById('progressText').textContent = '错题 0 题';
+    return;
+  }
+  render();
+}
+
+function render() {
+  const q = questions[cur];
+  document.getElementById('quizNo').textContent = `错题 ${cur + 1} / ${questions.length} 题（按最近答错排序）`;
+  document.getElementById('quizTitle').textContent = q.question;
+  document.getElementById('typeTag').textContent = q.qtype;
+  document.getElementById('countTag').textContent = '';
+  document.getElementById('progressBar').style.width = ((cur + 1) / questions.length * 100) + '%';
+  document.getElementById('progressText').textContent = `错题共 ${questions.length} 题`;
+
+  // 第一题无"上一题"，最后一题无"下一题"（按钮位置固定，仅不可见不移动）
+  document.getElementById('prevBtn').style.visibility = cur > 0 ? 'visible' : 'hidden';
+  document.getElementById('nextBtn').style.visibility = cur < questions.length - 1 ? 'visible' : 'hidden';
+
+  const letters = q.answer.split('');
+  const box = document.getElementById('optionBox');
+  box.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (letters.includes(LETTERS[i]) ? ' right' : '');
+    div.innerHTML = `<span class="letter">${LETTERS[i]}</span><span>${opt}</span>`;
+    box.appendChild(div);
+  });
+  const panel = document.getElementById('answerPanel');
+  panel.style.display = 'block';
+  panel.className = 'answer-panel show ok';
+  panel.innerHTML = `✅ 正确答案：${q.answer}` +
+    (q.explanation ? `<div class="exp">解析：${q.explanation}</div>` : '');
+}
+
+function prevQuestion() { if (cur > 0) { cur--; render(); } }
+function nextQuestion() { if (cur < questions.length - 1) { cur++; render(); } }
+
+async function removeCurrent() {
+  const q = questions[cur];
+  if (!confirm(`【第 1/2 步】确定把本题移出错题本吗？\n移除后将不再出现在错题本中。`)) return;
+  if (!confirm('【第 2/2 步】再次确认：真的要移除吗？')) return;
+  await fetch(`/api/wrong/remove/${q.id}`, {method: 'POST'});
+  questions.splice(cur, 1);
+  if (!questions.length) {
+    document.getElementById('emptyBox').style.display = 'block';
+    document.querySelector('.quiz-footer').style.display = 'none';
+    document.getElementById('removeBar').style.display = 'none';
+    document.getElementById('progressText').textContent = '错题 0 题';
+    return;
+  }
+  if (cur >= questions.length) cur = questions.length - 1;
+  render();
+}
+
+/* ---- 手机手势：左滑上一题（第一题禁止），右滑下一题（最后一题禁止） ---- */
+let touchX = 0, touchY = 0;
+document.addEventListener('touchstart', e => {
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+}, {passive: true});
+document.addEventListener('touchend', e => {
+  if (!questions.length) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  if (dx < 0) {                       // 左滑 → 上一题
+    if (cur > 0) { cur--; render(); }
+  } else {                            // 右滑 → 下一题
+    if (cur < questions.length - 1) { cur++; render(); }
+  }
+}, {passive: true});
+
+load();
+</script>
+</body>
+</html>

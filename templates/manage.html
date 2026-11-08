@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>题库管理</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>题库管理</h1>
+  <div class="sub">重命名或删除题库</div>
+</div>
+
+<div style="margin:12px 0px 0px">
+  <button class="btn gray small" onclick="location.href='/profile'">← 返回我的</button>
+</div>
+
+<div class="card">
+  <div id="manageList"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="/"><span class="icon">🏠</span>首页</a>
+  <a href="/profile" class="active"><span class="icon">🧸</span>我的</a>
+</nav>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadManage() {
+  const data = await (await fetch('/api/subjects')).json();
+  const list = document.getElementById('manageList');
+  list.innerHTML = data.subjects.length ? data.subjects.map(s => `
+    <div class="exam-row">
+      <span><b>${escapeHtml(s.name)}</b><br>
+        <span style="font-size:12px;color:var(--text-2)">${s.question_count} 道题</span></span>
+      <span style="white-space:nowrap">
+        <button class="btn gray small" onclick="renameSubject(${s.id}, '${escapeHtml(s.name)}')">重命名</button>
+        <button class="btn danger small" style="margin-left:8px" onclick="deleteSubject(${s.id}, '${escapeHtml(s.name)}')">删除</button>
+      </span>
+    </div>`).join('') : '<div class="empty">还没有题库，请到「导入新题库」创建</div>';
+}
+
+async function renameSubject(id, oldName) {
+  const name = prompt('新的题库名称：', oldName);
+  if (name === null) return;
+  const newName = name.trim();
+  if (!newName || newName === oldName) return;
+  if (!confirm(`确定把题库"${oldName}"重命名为"${newName}"吗？`)) return;   // 二次确认
+  const res = await fetch(`/api/subjects/${id}/rename`, {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: newName})});
+  const data = await res.json();
+  if (!res.ok) return alert(data.error);
+  alert('重命名成功'); loadManage();
+}
+
+async function deleteSubject(id, name) {
+  if (!confirm(`【第 1/2 步】确定删除题库"${name}"吗？\n该题库的题目、错题记录、收藏、进度都会一并删除！`)) return;
+  if (!confirm('【第 2/2 步】再次确认：真的要删除吗？此操作不可恢复！')) return;
+  const res = await fetch(`/api/subjects/${id}/delete`, {method: 'POST'});
+  if (!res.ok) return alert('删除失败');
+  alert('删除成功'); loadManage();
+}
+
+loadManage();
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>模拟考试</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="quiz-top">
+  <button class="btn gray small" onclick="location.href='/'">← 返回</button>
+  <span class="type-tag">模拟考试</span>
+  <span style="font-weight:700;color:var(--red)" id="timer">--:--</span>
+</div>
+<div class="progress-wrap">
+  <div class="progress-bar"><i id="progressBar" style="width:0%"></i></div>
+  <div style="font-size:12px;color:var(--text-2);margin-top:6px" id="progressText">0 / 0</div>
+</div>
+
+<div class="quiz-body">
+  <div class="quiz-no" id="quizNo"></div>
+  <div class="quiz-title" id="quizTitle"></div>
+  <div id="optionBox"></div>
+  <div class="empty" id="emptyBox" style="display:none"><div class="icon">📝</div>该科目题目不足，无法开始考试</div>
+</div>
+
+<div class="quiz-footer">
+  <button onclick="prevQuestion()">上一题</button>
+  <button class="confirm" id="markBtn" onclick="toggleMark()">标记本题</button>
+  <button onclick="nextQuestion()">下一题</button>
+  <button style="color:var(--red);font-weight:600" onclick="confirmSubmit()">交卷</button>
+</div>
+
+<!-- 成绩弹层 -->
+<div class="modal-mask" id="resultMask">
+  <div class="modal">
+    <h2 style="font-size:18px">考试成绩</h2>
+    <div class="score" id="scoreNum"></div>
+    <div id="resultText" style="font-size:14px;color:var(--text-2);line-height:1.8;margin-bottom:14px"></div>
+    <button class="btn full" onclick="location.reload()">再来一次</button>
+    <button class="btn gray full" style="margin-top:10px" onclick="location.href='/'">返回首页</button>
+  </div>
+</div>
+
+<script>
+const subjectId = {{ subject_id }};
+const LETTERS = 'ABCDEF';
+let questions = [], cur = 0, answers = {}, marked = new Set();
+let remainSec = 0, timer = null, submitted = false, startTs = 0;
+
+async function start() {
+  const data = await (await fetch(`/api/exam/start/${subjectId}`)).json();
+  if (!data.questions.length) {
+    document.getElementById('emptyBox').style.display = 'block';
+    document.querySelector('.quiz-footer').style.display = 'none';
+    return;
+  }
+  questions = data.questions;
+  remainSec = data.minutes * 60;
+  startTs = Date.now();
+  timer = setInterval(tick, 1000);
+  render();
+}
+
+function tick() {
+  remainSec--;
+  if (remainSec <= 0) { doSubmit(); return; }
+  const m = String(Math.floor(remainSec / 60)).padStart(2, '0');
+  const s = String(remainSec % 60).padStart(2, '0');
+  document.getElementById('timer').textContent = `${m}:${s}`;
+}
+
+function render() {
+  const q = questions[cur];
+  document.getElementById('quizNo').textContent =
+    `第 ${cur + 1} / ${questions.length} 题` + (marked.has(q.id) ? ' · 🔖已标记' : '');
+  document.getElementById('quizTitle').textContent = q.question;
+  document.getElementById('typeTag').textContent = q.qtype;
+  document.getElementById('progressBar').style.width = ((cur + 1) / questions.length * 100) + '%';
+  document.getElementById('progressText').textContent =
+    `已答 ${Object.keys(answers).length} / ${questions.length} 题`;
+  const picked = answers[q.id] || [];
+  const box = document.getElementById('optionBox');
+  box.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (picked.includes(i) ? ' selected' : '');
+    div.innerHTML = `<span class="letter">${LETTERS[i]}</span><span>${opt}</span>`;
+    div.onclick = () => pick(i);
+    box.appendChild(div);
+  });
+  document.getElementById('markBtn').textContent = marked.has(q.id) ? '取消标记' : '标记本题';
+}
+
+function pick(i) {
+  const q = questions[cur];
+  if (q.qtype === '多选') {
+    const arr = answers[q.id] || [];
+    const idx = arr.indexOf(i);
+    if (idx >= 0) arr.splice(idx, 1); else arr.push(i);
+    answers[q.id] = arr;
+  } else {
+    answers[q.id] = [i];
+  }
+  render();
+}
+
+function toggleMark() {
+  const qid = questions[cur].id;
+  marked.has(qid) ? marked.delete(qid) : marked.add(qid);
+  render();
+}
+function prevQuestion() { if (cur > 0) { cur--; render(); } }
+function nextQuestion() {
+  if (cur < questions.length - 1) { cur++; render(); }
+  else confirmSubmit();
+}
+
+function confirmSubmit() {
+  const unanswered = questions.length - Object.keys(answers).length;
+  if (unanswered > 0) {
+    if (!confirm(`还有 ${unanswered} 题未作答，确定交卷吗？`)) return;
+  } else if (!confirm('确定交卷吗？')) return;
+  doSubmit();
+}
+
+async function doSubmit() {
+  if (submitted) return;
+  submitted = true;
+  clearInterval(timer);
+  const data = await (await fetch('/api/exam/submit', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      subject_id: subjectId,
+      duration: Math.round((Date.now() - startTs) / 1000),
+      answers: Object.fromEntries(Object.entries(answers).map(
+        ([qid, arr]) => [qid, arr.map(i => LETTERS[i])]))
+    })})).json();
+  showResult(data);
+}
+
+function showResult(d) {
+  document.getElementById('scoreNum').textContent = d.score + ' 分';
+  document.getElementById('scoreNum').className = 'score ' + (d.passed ? 'pass' : 'fail');
+  const mm = Math.floor(d.duration / 60), ss = d.duration % 60;
+  document.getElementById('resultText').innerHTML =
+    `${d.passed ? '🎉 恭喜通过！' : '很遗憾，未达标。'}<br>` +
+    `合格线 ${d.pass_score} 分 · 答对 ${d.correct} / ${d.total} 题 · 用时 ${mm}分${ss}秒<br>` +
+    `错题已自动加入错题本`;
+  document.getElementById('resultMask').classList.add('show');
+  document.querySelector('.quiz-footer').style.display = 'none';
+}
+
+start();
+</script>
+</body>
+</html>

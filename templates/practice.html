@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>练习</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="quiz-top">
+  <button class="btn gray small" onclick="goBack()">← 返回</button>
+  <span class="type-tag" id="typeTag">单选</span>
+</div>
+<div class="progress-wrap">
+  <div class="progress-bar"><i id="progressBar" style="width:0%"></i></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+    <span style="font-size:12px;color:var(--text-2)" id="progressText">0 / 0</span>
+    <button class="btn gray small" id="statusBtn" style="display:none" onclick="showStatus()">📋 答题情况</button>
+  </div>
+</div>
+
+<div class="quiz-body">
+  <!-- 错题本考试模式：移除按钮位于题目内容上方 -->
+  <div id="removeBar" style="display:none">
+    <button class="btn danger small" onclick="removeCurrent()">✂ 移出错题本</button>
+  </div>
+  <div class="quiz-no" id="quizNo"></div>
+  <div class="quiz-title" id="quizTitle"></div>
+  <div id="optionBox"></div>
+  <div class="answer-panel" id="answerPanel"></div>
+  <div class="empty" id="emptyBox" style="display:none">
+    <div class="icon">🎉</div><div id="emptyText"></div>
+  </div>
+</div>
+
+<!-- 按钮位置固定：第一题"上一题"只是不可见，不会移位 -->
+<div class="quiz-footer">
+  <button id="prevBtn" onclick="prevQuestion()">上一题</button>
+  <button class="confirm" id="confirmBtn" onclick="submitAnswer()">确认答案</button>
+  <button id="nextBtn" onclick="nextClick()">下一题</button>
+</div>
+
+<!-- 答题情况概览 -->
+<div id="statusOverlay" style="display:none">
+  <div class="status-card">
+    <div class="status-head">
+      <b>答题情况</b>
+      <span id="statusSummary" style="font-size:12px;color:var(--text-2)"></span>
+      <button class="btn gray small" onclick="hideStatus()">关闭</button>
+    </div>
+    <div class="status-legend">
+      <span><i class="dot ok"></i>答对</span>
+      <span><i class="dot no"></i>答错</span>
+      <span><i class="dot picked"></i>已选未确认</span>
+      <span><i class="dot"></i>未答</span>
+    </div>
+    <div class="num-grid" id="numGrid"></div>
+  </div>
+</div>
+
+<script>
+const subjectId = {{ subject_id }};
+const mode = '{{ mode }}';
+const modeName = {order:'顺序练习', random:'随机练习', wrong:'错题本考试', favorite:'我的收藏'}[mode];
+const modeUrl = {order:'order', random:'random', wrong:'wrong', favorite:'favorite'}[mode];
+document.title = modeName;
+
+let questions = [], cur = 0, picked = [], answered = false;
+let startOffset = 0;                  // 顺序练习：服务器返回的起始偏移（全局题号）
+let stats = {right:0, wrong:0};
+const picks = {};                     // qid -> [选项下标] 已选未确认的选择（点击选项即记录）
+const results = {};                   // qid -> {picked, correct, answer, explanation} 已确认的答题结果
+
+const LETTERS = 'ABCDEF';
+function optionLetter(i){ return LETTERS[i]; }
+function goBack() { location.href = '/subject/' + subjectId; }
+
+async function load() {
+  const res = await fetch(`/api/questions/${subjectId}?mode=${modeUrl}`);
+  const data = await res.json();
+  questions = data.questions;
+  startOffset = data.start || 0;
+  if (!questions.length) {
+    document.getElementById('emptyBox').style.display = 'block';
+    document.getElementById('emptyText').textContent =
+      mode === 'wrong' ? '错题本是空的，太棒了，继续保持！' :
+      mode === 'favorite' ? '还没有收藏题目' : '该题库暂无题目';
+    document.querySelector('.quiz-footer').style.display = 'none';
+    return;
+  }
+  if (mode === 'wrong') document.getElementById('removeBar').style.display = '';
+  if (mode === 'random' || mode === 'wrong')
+    document.getElementById('statusBtn').style.display = '';
+  render();
+}
+
+function render() {
+  const q = questions[cur];
+  const saved = results[q.id];        // 已确认的答题结果
+  answered = !!saved;
+  picked = saved ? saved.picked.slice() : (picks[q.id] ? picks[q.id].slice() : []);
+
+  document.getElementById('quizNo').textContent = `${modeName} · 第 ${startOffset + cur + 1} 题`;
+  document.getElementById('quizTitle').textContent = q.question;
+  document.getElementById('typeTag').textContent = q.qtype;
+  document.getElementById('progressBar').style.width =
+    ((startOffset + cur + 1) / (startOffset + questions.length) * 100) + '%';
+  updateProgressText();
+
+  const box = document.getElementById('optionBox');
+  box.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option';
+    div.innerHTML = `<span class="letter">${optionLetter(i)}</span><span>${opt}</span>`;
+    div.onclick = () => selectOption(div, i);
+    box.appendChild(div);
+  });
+
+  const panel = document.getElementById('answerPanel');
+  if (saved) {
+    // 恢复已确认的答题状态
+    const letters = saved.answer.split('');
+    box.querySelectorAll('.option').forEach((div, i) => {
+      if (letters.includes(optionLetter(i))) div.classList.add('right');
+      else if (picked.includes(i)) div.classList.add('wrong');
+    });
+    panel.className = 'answer-panel show ' + (saved.correct ? 'ok' : 'no');
+    panel.innerHTML = (saved.correct ? '✅ 回答正确！' : `❌ 回答错误，正确答案：${saved.answer}`) +
+      (saved.explanation ? `<div class="exp">解析：${saved.explanation}</div>` : '');
+    document.getElementById('confirmBtn').textContent = '已确认';
+  } else {
+    // 恢复未确认的选择（只高亮，不显示答案）
+    if (picked.length) {
+      box.querySelectorAll('.option').forEach((div, i) => {
+        if (picked.includes(i)) div.classList.add('selected');
+      });
+    }
+    panel.className = 'answer-panel';
+    document.getElementById('confirmBtn').textContent = '确认答案';
+  }
+
+  updateFooter();
+}
+
+function updateFooter() {
+  const isLast = cur === questions.length - 1;
+  // 位置固定：用 visibility 隐藏，不用 display
+  document.getElementById('prevBtn').style.visibility = cur > 0 ? 'visible' : 'hidden';
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.style.visibility = 'visible';
+  if (!isLast) {
+    nextBtn.textContent = '下一题';
+    nextBtnAction = 'next';
+  } else if (mode === 'random' || mode === 'wrong') {
+    nextBtn.textContent = '交卷';
+    nextBtnAction = 'submit';
+  } else if (mode === 'order' && answered) {
+    // 顺序练习最后一题答完后出现"返回"
+    nextBtn.textContent = '返回';
+    nextBtnAction = 'back';
+  } else {
+    nextBtn.style.visibility = 'hidden';
+    nextBtnAction = '';
+  }
+}
+let nextBtnAction = 'next';
+
+function updateProgressText() {
+  document.getElementById('progressText').textContent =
+    `${startOffset + cur + 1} / ${startOffset + questions.length} · 本轮答对 ${stats.right} 错 ${stats.wrong}`;
+}
+
+function selectOption(div, i) {
+  if (answered) return;
+  const q = questions[cur];
+  if (q.qtype === '多选') {
+    const idx = picked.indexOf(i);
+    if (idx >= 0) { picked.splice(idx, 1); div.classList.remove('selected'); }
+    else { picked.push(i); div.classList.add('selected'); }
+  } else {
+    picked = [i];
+    document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+    div.classList.add('selected');
+  }
+  // 点击选项立即记录，即使不点确认，返回本题时也能还原选择
+  picks[q.id] = picked.slice();
+  if (mode === 'random' || mode === 'wrong') buildNumGrid();
+}
+
+async function submitAnswer() {
+  if (answered) return;
+  if (!picked.length) { alert('请先选择答案'); return; }
+  const q = questions[cur];
+  const res = await fetch('/api/answer', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({question_id: q.id,
+      picked: picked.map(i => optionLetter(i)), source: modeUrl})});
+  const data = await res.json();
+  answered = true;
+  results[q.id] = {picked: picked.slice(), correct: data.correct,
+                   answer: data.answer, explanation: data.explanation};
+  delete picks[q.id];
+  data.correct ? stats.right++ : stats.wrong++;
+  showJudge(data.correct, data.answer, data.explanation);
+
+  // 顺序练习：点击确认立即持久化进度（答到第几题）
+  if (mode === 'order') {
+    fetch(`/api/progress/${subjectId}`, {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({index: startOffset + cur + 1})});
+  }
+  if (mode === 'random' || mode === 'wrong') buildNumGrid();
+}
+
+function showJudge(correct, answer, exp) {
+  const letters = answer.split('');
+  document.querySelectorAll('.option').forEach((div, i) => {
+    if (letters.includes(optionLetter(i))) div.classList.add('right');
+    else if (div.classList.contains('selected')) div.classList.add('wrong');
+  });
+  const panel = document.getElementById('answerPanel');
+  panel.className = 'answer-panel show ' + (correct ? 'ok' : 'no');
+  panel.innerHTML = correct ? '✅ 回答正确！' +
+      (mode === 'wrong' ? '（已移出错题本）' : '') +
+      (exp ? `<div class="exp">解析：${exp}</div>` : '')
+    : `❌ 回答错误，正确答案：${answer}` +
+      (exp ? `<div class="exp">解析：${exp}</div>` : '');
+  document.getElementById('confirmBtn').textContent = '已确认';
+  updateFooter();
+  updateProgressText();
+}
+
+function prevQuestion() { if (cur > 0) { cur--; render(); } }
+
+function nextClick() {
+  if (nextBtnAction === 'next') { cur++; render(); }
+  else if (nextBtnAction === 'submit') {
+    // 交卷：汇总本轮成绩
+    const total = Object.keys(results).length;
+    confirm(`本轮完成！共 ${questions.length} 题，已答 ${total} 题，` +
+      `答对 ${stats.right} 题，答错 ${stats.wrong} 题。\n返回模式选择页？`) && goBack();
+  }
+  else if (nextBtnAction === 'back') goBack();
+}
+
+/* ---- 答题情况概览（随机练习 / 错题本考试） ---- */
+function showStatus() {
+  buildNumGrid();
+  document.getElementById('statusOverlay').style.display = 'flex';
+}
+function hideStatus() {
+  document.getElementById('statusOverlay').style.display = 'none';
+}
+/* 点遮罩区域也可关闭（点卡片内容不关闭） */
+document.getElementById('statusOverlay').addEventListener('click', e => {
+  if (e.target.id === 'statusOverlay') hideStatus();
+});
+function buildNumGrid() {
+  const grid = document.getElementById('numGrid');
+  const done = Object.keys(results).length;
+  const sel = Object.keys(picks).length;
+  document.getElementById('statusSummary').textContent =
+    `总题数 ${questions.length} · 已答 ${done} · 已选未确认 ${sel}`;
+  grid.innerHTML = '';
+  questions.forEach((q, i) => {
+    const r = results[q.id];
+    const div = document.createElement('div');
+    div.className = 'num-chip' + (r ? (r.correct ? ' ok' : ' no')
+                        : picks[q.id] ? ' picked' : '');
+    div.textContent = i + 1;
+    div.title = r ? (r.correct ? '答对' : '答错') : picks[q.id] ? '已选未确认' : '未答';
+    div.onclick = () => { cur = i; hideStatus(); render(); };
+    grid.appendChild(div);
+  });
+}
+
+/* 错题本考试模式：移出本题（二次确认） */
+async function removeCurrent() {
+  const q = questions[cur];
+  if (!confirm(`【第 1/2 步】确定把本题移出错题本吗？\n移除后将不再出现在错题本中。`)) return;
+  if (!confirm('【第 2/2 步】再次确认：真的要移除吗？')) return;
+  await fetch(`/api/wrong/remove/${q.id}`, {method: 'POST'});
+  questions.splice(cur, 1);
+  if (!questions.length) {
+    document.getElementById('emptyBox').style.display = 'block';
+    document.getElementById('emptyText').textContent = '错题本已清空，太棒了！';
+    document.querySelector('.quiz-footer').style.display = 'none';
+    document.getElementById('removeBar').style.display = 'none';
+    document.getElementById('statusBtn').style.display = 'none';
+    return;
+  }
+  if (cur >= questions.length) cur = questions.length - 1;
+  render();
+}
+
+/* ---- 手机手势：左滑上一题（第一题禁止），右滑下一题（最后一题禁止） ---- */
+let touchX = 0, touchY = 0;
+document.addEventListener('touchstart', e => {
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+}, {passive: true});
+document.addEventListener('touchend', e => {
+  if (!questions.length) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // 过滤误触/纵向滚动
+  if (dx < 0) {                       // 左滑 → 上一题
+    if (cur > 0) { cur--; render(); }
+  } else {                            // 右滑 → 下一题
+    if (cur < questions.length - 1) { cur++; render(); }
+  }
+}, {passive: true});
+
+load();
+</script>
+</body>
+</html>

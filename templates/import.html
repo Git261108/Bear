@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>导入新题库</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>导入新题库</h1>
+  <div class="sub">上传一个 Excel 文件，使其成为一个新题库</div>
+</div>
+
+<div style="margin:12px 0px 0px">
+  <button class="btn gray small" onclick="location.href='/profile'">← 返回我的</button>
+</div>
+
+<div class="card">
+  <p style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:12px">
+    支持 <b>.xlsx</b> 和 <b>.xls</b> 格式，表头列：<br>
+    题型(单选·多选·判断) / 题目 / 选项A~F / 答案 / 解析<br>
+    模板见项目目录 <b>题库模板.xlsx</b>
+  </p>
+  <input id="newName" placeholder="题库名称（留空则用文件名）"
+         style="width:100%;padding:11px 14px;border:1.5px solid #e7ebf2;border-radius:12px;font-size:15px;margin-bottom:10px;outline:none">
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" style="display:none">
+  <button class="btn full" onclick="document.getElementById('fileInput').click()"> 💻 由电脑的 Excel 创建题库</button>
+  <button class="btn gray full" style="margin-top:10px" onclick="importOnAndroid()">📁 由手机的 Excel 创建题库</button>
+  <div id="importMsg" style="font-size:13px;margin-top:10px;color:var(--green)"></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="/"><span class="icon">🏠</span>首页</a>
+  <a href="/profile" class="active"><span class="icon">🧸</span>我的</a>
+</nav>
+
+<script>
+// ---------- PC 上传创建题库 ----------
+document.getElementById('fileInput').addEventListener('change', async function () {
+  if (!this.files.length) return;
+  const fileName = this.files[0].name.replace(/\.(xlsx|xls|xlsm)$/i, '');
+  const name = document.getElementById('newName').value.trim() || fileName;
+  const fd = new FormData();
+  fd.append('file', this.files[0]);
+  fd.append('name', name);
+  const msg = document.getElementById('importMsg');
+  msg.style.color = '#8a94a6'; msg.textContent = '正在创建题库，请稍候…';
+  try {
+    const res = await fetch('/api/subjects/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    msg.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+    msg.textContent = res.ok ? data.message : (data.error || '创建失败');
+  } catch (e) {
+    msg.style.color = 'var(--red)'; msg.textContent = '创建失败：' + e;
+  }
+  this.value = '';
+});
+
+// ---------- 手机上选择 Excel 创建题库 ----------
+async function importOnAndroid() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) return alert('请先在上面的输入框填写新题库的名称');
+  const msg = document.getElementById('importMsg');
+  msg.style.color = '#8a94a6'; msg.textContent = '请在弹出的文件选择器中选择 Excel 文件…';
+
+  const res = await fetch('/api/import/local', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+  const data = await res.json();
+  if (!res.ok) { msg.style.color = 'var(--red)'; msg.textContent = data.error; return; }
+
+  const timer = setInterval(async () => {
+    const r = await (await fetch('/api/import/local/poll')).json();
+    if (r.state === 'waiting') return;
+    clearInterval(timer);
+    msg.style.color = r.state === 'done' ? 'var(--green)' : 'var(--red)';
+    msg.textContent = r.state === 'done' ? r.message : (r.error || '未选择文件');
+  }, 1000);
+}
+</script>
+</body>
+</html>

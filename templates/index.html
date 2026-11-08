@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>🌈Bear·熊笔记</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>🌟Bear·熊笔记</h1>
+  <div class="sub">点击题库进入练习模式选择</div>
+</div>
+
+<div class="card">
+  <h2>我的题库</h2>
+  <div class="subject-grid" id="subjectGrid"></div>
+  <div class="empty" id="noSubject" style="display:none">
+    <div class="icon">📚</div>
+    还没有题库，请到「我的 → 题库管理」上传 Excel 题库新建题库
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="/" class="active"><span class="icon">🏠</span>首页</a>
+  <a href="/profile"><span class="icon">🧸</span>我的</a>
+</nav>
+
+<script>
+async function loadSubjects() {
+  const data = await (await fetch('/api/subjects')).json();
+  const grid = document.getElementById('subjectGrid');
+  document.getElementById('noSubject').style.display = data.subjects.length ? 'none' : 'block';
+  grid.innerHTML = data.subjects.map(s => `
+    <div class="subject-item" onclick="location.href='/subject/${s.id}'">
+      <div class="name">${escapeHtml(s.name)}</div>
+      <div class="count">${s.question_count} 道题 · 点击进入</div>
+      <div class="bar"><i></i></div>
+    </div>`).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+loadSubjects();
+</script>
+</body>
+</html>
