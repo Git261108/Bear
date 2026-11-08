@@ -20,6 +20,8 @@ orientation = portrait
 fullscreen = 0
 android.api = 33
 android.minapi = 24
+# 固定 build-tools 为稳定版，避免 sdkmanager 自动追最新版（37）导致的许可/兼容问题
+android.build_tools_version = 34.0.0
 android.archs = arm64-v8a, armeabi-v7a
 # 权限：网络 + 读取存储（用于从手机下载文件夹导入题库）
 android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE

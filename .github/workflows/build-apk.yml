@@ -25,9 +25,19 @@ jobs:
           pip install buildozer cython==0.29.33
           buildozer --version
 
-      # 许可协议由 buildozer.spec 中的 android.accept_license = 1 自动接受
-      # 注意：不要预创建 ~/.buildozer/android/platform/android-sdk 目录，
-      # 否则 buildozer 会误判 SDK 已安装而跳过下载
+      # 预装 Buildozer 期望布局的 SDK（tools/bin/sdkmanager）+ 许可指纹 + 基础组件，
+      # 使 buildozer 识别为"SDK 已存在"后能直接用，且不会再触发交互式许可确认
+      - name: 预装 Android SDK 并接受许可
+        run: |
+          SDK=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $SDK/licenses
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/clt.zip
+          unzip -q /tmp/clt.zip -d /tmp/clt
+          mv /tmp/clt/cmdline-tools $SDK/tools
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > $SDK/licenses/android-sdk-license
+          printf "84831b9409646a918e30573bab4c9c9136d617a0\n" > $SDK/licenses/android-sdk-preview-license
+          export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+          yes | $SDK/tools/bin/sdkmanager --sdk_root=$SDK "platform-tools" "platforms;android-33" "build-tools;34.0.0"
 
       - name: 打包 APK（首次约 20~40 分钟）
         run: buildozer -v android debug
