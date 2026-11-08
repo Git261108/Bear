@@ -25,6 +25,12 @@ jobs:
           pip install buildozer cython==0.29.33
           buildozer --version
 
+      - name: 预写 Android SDK 许可文件
+        run: |
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          printf "84831b9409646a918e30573bab4c9c9136d617a0\n" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
       - name: 打包 APK（首次约 20~40 分钟）
         run: buildozer -v android debug
 
